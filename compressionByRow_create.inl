@@ -5,7 +5,7 @@
 
 namespace CSR{
     template <class t>
-    CSR_container<t>::CSR_container(const t* data_, const int* data_col_indices_, const int* rows_ptr_, const int& rows_, const int& cols_){
+    CSR_container<t>::CSR_container(const t* data_, const int* data_col_indices_, const int* rows_ptr_, const int rows_, const int cols_){
         int data_len = rows_ptr_[rows_];
         data = new t[data_len]{(t)0};
         data_col_indices = new int[data_len]{0};
@@ -24,17 +24,17 @@ namespace CSR{
 
     template <class t>
     CSR_container<t>::CSR_container(const arr2D::arr2d_container<t>& arr2d_origin){
-        rows = arr2d_origin.rows; cols = arr2d_origin.cols;
+        rows = arr2d_origin.showRowNums(); cols = arr2d_origin.showColNums();
         rows_ptr = new int[rows+1]{0};
         data = new t[rows*cols]{(t)0};
         data_col_indices = new int[rows*cols]{0};
         changeFlag = true;
         arr2d_ptr_revert = arr2D::arr2d_container<t>();
         int data_p = 0;
-        for(int i = 0; i<arr2d_origin.rows; i++){
-            auto rowArr = arr2d_origin[i];
+        for(int i = 0; i<rows; i++){
+            const auto rowArr = arr2d_origin[i];
             int count = 0;
-            for(int j = 0; j<arr2d_origin.cols; j++){
+            for(int j = 0; j<cols; j++){
                 if(rowArr[j] != (t)0){
                     count++;
                     data[data_p] = rowArr[j];
@@ -75,8 +75,7 @@ namespace CSR{
         CSR_copy.data = nullptr;
         CSR_copy.data_col_indices = nullptr;
         CSR_copy.rows_ptr = nullptr;
-        delete[] CSR_copy.arr2d_ptr_revert.arr2d_ptr;
-        CSR_copy.arr2d_ptr_revert.arr2d_ptr = nullptr;
+        CSR_copy.arr2d_ptr_revert.deleteArr2d();
     }
 
     template <class t>
@@ -114,13 +113,12 @@ namespace CSR{
                 CSR_convert.data = nullptr;
                 CSR_convert.data_col_indices = nullptr;
                 CSR_convert.rows_ptr = nullptr;
-                delete[] CSR_convert.arr2d_ptr_revert.arr2d_ptr;
-                CSR_convert.arr2d_ptr_revert.arr2d_ptr = nullptr;
+                CSR_convert.arr2d_ptr_revert.deleteArr2d();
             }
 
     template <class t>
     CSR_container<t>::~CSR_container(){
-        delete[] arr2d_ptr_revert.arr2d_ptr;
+        arr2d_ptr_revert.deleteArr2d();
         delete[] data;
         delete[] data_col_indices;
         delete[] rows_ptr;
