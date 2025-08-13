@@ -1,5 +1,6 @@
 #include <type_traits>
 #include <utility>
+#include <typeinfo>
 #include "arr2D.h"
 #include "compressionByRow.h"
 #ifndef COMPRESS_H_OPERATORS_
@@ -9,10 +10,9 @@ namespace CSR{
     template <class t>
     CSR_container<t>& CSR_container<t>::operator=(const CSR_container<t>& CSR_eq){
         if(this != &CSR_eq){
-            delete[] arr2d_ptr_revert.arr2d_ptr;
-            arr2d_ptr_revert.arr2d_ptr = nullptr;
-            arr2d_ptr_revert.rows = 0; arr2d_ptr_revert.cols = 0;
-            arr2d_ptr_revert.transposeFlag = false;
+            arr2d_ptr_revert.deleteArr2d();
+            arr2d_ptr_revert.changePram(0, 0);
+            arr2d_ptr_revert.changePram(false);
             rows = CSR_eq.rows; cols = CSR_eq.cols;
             changeFlag = true;
             delete[] data;
@@ -36,10 +36,9 @@ namespace CSR{
     template <class t>
     CSR_container<t>& CSR_container<t>::operator=(CSR_container<t>&& CSR_eq){
         if(this != &CSR_eq){
-            delete[] arr2d_ptr_revert.arr2d_ptr;
-            arr2d_ptr_revert.arr2d_ptr = nullptr;
-            arr2d_ptr_revert.rows = 0; arr2d_ptr_revert.cols = 0;
-            arr2d_ptr_revert.transposeFlag = false;
+            arr2d_ptr_revert.deleteArr2d();
+            arr2d_ptr_revert.changePram(0, 0);
+            arr2d_ptr_revert.changePram(false);
             rows = CSR_eq.rows; cols = CSR_eq.cols;
             changeFlag = true;
             delete[] data;
@@ -51,22 +50,27 @@ namespace CSR{
             CSR_eq.data = nullptr;
             CSR_eq.data_col_indices = nullptr;
             CSR_eq.rows_ptr = nullptr;
-            delete[] CSR_eq.arr2d_ptr_revert.arr2d_ptr;
-            CSR_eq.arr2d_ptr_revert.arr2d_ptr = nullptr;
+            CSR_eq.arr2d_ptr_revert.deleteArr2d();
         }
         return *this;
     }
 
     template <class t>
-    typename arr2D::arr2d_container<t>::RowProxy CSR_container<t>::operator[](const int& row){
+    auto CSR_container<t>::operator[](const int row){
         revert();
-        typename arr2D::arr2d_container<t>::RowProxy rowData = arr2d_ptr_revert[row];
+        auto rowData = arr2d_ptr_revert[row];
+        return rowData;
+    }
+
+    template <class t>
+    const auto CSR_container<t>::operator[](const int row) const{
+        const auto rowData = const_cast<CSR_container<t>*>(this)->operator[](row);
         return rowData;
     }
 
     template <class t>
         template <class t1>
-            bool CSR_container<t>::operator==(const t1& a){
+            bool CSR_container<t>::operator==(const t1& a) const{
                 bool flag = false;
                 if(!is_CSR_container<t1>::value)
                     return flag;
@@ -106,14 +110,14 @@ t1 operator+(t1&& a, const t2& b){
 }
 
 template <class t1, class t2, typename = typename std::enable_if<!CSR::is_CSR_container<t1>::value && CSR::is_CSR_container<t2>::value>::type>
-t2 operator+(const t1& a, const t2& b){
+t2 operator+(const t1 a, const t2& b){
     t2 result(b);
     CSR::operator_right(a, result, (char)0);
     return result;
 }
 
 template <class t1, class t2, typename = typename std::enable_if<!CSR::is_CSR_container<t1>::value && CSR::is_CSR_container<t2>::value>::type>
-t2 operator+(const t1& a, t2&& b){
+t2 operator+(const t1 a, t2&& b){
     t2 result(std::move(b));
     CSR::operator_right(a, result, (char)0);
     return result;
@@ -134,14 +138,14 @@ t1 operator-(t1&& a, const t2& b){
 }
 
 template <class t1, class t2, typename = typename std::enable_if<!CSR::is_CSR_container<t1>::value && CSR::is_CSR_container<t2>::value>::type>
-t2 operator-(const t1& a, const t2& b){
+t2 operator-(const t1 a, const t2& b){
     t2 result(b);
     CSR::operator_left(a, result, (char)1);
     return result;
 }
 
 template <class t1, class t2, typename = typename std::enable_if<!CSR::is_CSR_container<t1>::value && CSR::is_CSR_container<t2>::value>::type>
-t2 operator-(const t1& a, t2&& b){
+t2 operator-(const t1 a, t2&& b){
     t2 result(std::move(b));
     CSR::operator_left(a, result, (char)1);
     return result;
@@ -162,14 +166,14 @@ t1 operator*(t1&& a, const t2& b){
 }
 
 template <class t1, class t2, typename = typename std::enable_if<!CSR::is_CSR_container<t1>::value && CSR::is_CSR_container<t2>::value>::type>
-t2 operator*(const t1& a, const t2& b){
+t2 operator*(const t1 a, const t2& b){
     t2 result(b);
     CSR::operator_right(a, result, (char)2);
     return result;
 }
 
 template <class t1, class t2, typename = typename std::enable_if<!CSR::is_CSR_container<t1>::value && CSR::is_CSR_container<t2>::value>::type>
-t2 operator*(const t1& a, t2&& b){
+t2 operator*(const t1 a, t2&& b){
     t2 result(std::move(b));
     CSR::operator_right(a, result, (char)2);
     return result;
@@ -190,14 +194,14 @@ t1 operator/(t1&& a, const t2& b){
 }
 
 template <class t1, class t2, typename = typename std::enable_if<!CSR::is_CSR_container<t1>::value && CSR::is_CSR_container<t2>::value>::type>
-t2 operator/(const t1& a, const t2& b){
+t2 operator/(const t1 a, const t2& b){
     t2 result(b);
     CSR::operator_left(a, result, (char)3);
     return result;
 }
 
 template <class t1, class t2, typename = typename std::enable_if<!CSR::is_CSR_container<t1>::value && CSR::is_CSR_container<t2>::value>::type>
-t2 operator/(const t1& a, t2&& b){
+t2 operator/(const t1 a, t2&& b){
     t2 result(std::move(b));
     CSR::operator_left(a, result, (char)3);
     return result;
@@ -218,14 +222,14 @@ t1 operator^(t1&& a, const t2& b){
 }
 
 template <class t1, class t2, typename = typename std::enable_if<!CSR::is_CSR_container<t1>::value && CSR::is_CSR_container<t2>::value>::type>
-t2 operator^(const t1& a, const t2& b){
+t2 operator^(const t1 a, const t2& b){
     t2 result(b);
     CSR::operator_left(a, result, (char)4);
     return result;
 }
 
 template <class t1, class t2, typename = typename std::enable_if<!CSR::is_CSR_container<t1>::value && CSR::is_CSR_container<t2>::value>::type>
-t2 operator^(const t1& a, t2&& b){
+t2 operator^(const t1 a, t2&& b){
     t2 result(std::move(b));
     CSR::operator_left(a, result, (char)4);
     return result;
