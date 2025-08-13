@@ -1,12 +1,13 @@
 #include <cmath>
 #include <type_traits>
+#include <iostream>
 #include "compressionByRow.h"
 #ifndef COMPRESS_H_METHODS_
 #define COMPRESS_H_METHODS_
 
 namespace CSR{
     template <class t>
-    void CSR_container<t>::rowSum(t* sumResult){
+    void CSR_container<t>::rowSum(t* sumResult) const{
         int data_point = 0;
         for(int i = 0; i<rows; i++){
             int rowNotZeroNums = rows_ptr[i+1] - rows_ptr[i];
@@ -20,7 +21,7 @@ namespace CSR{
     }
 
     template <class t>
-    t CSR_container<t>::sum(){
+    t CSR_container<t>::sum() const{
         t sumResult = (t)0;
         int data_len = rows_ptr[rows];
         for(int i = 0; i<data_len; i++){
@@ -30,20 +31,19 @@ namespace CSR{
     }
 
     template <class t>
-    void CSR_container<t>::revert(){
+    void CSR_container<t>::revert() const{
         if(changeFlag){
-            delete[] arr2d_ptr_revert.arr2d_ptr;
+            arr2d_ptr_revert.deleteArr2d();
             t* arr = new t[rows*cols]{(t)0};
-            arr2d_ptr_revert.arr2d_ptr = arr;
-            arr2d_ptr_revert.rows = rows;
-            arr2d_ptr_revert.cols = cols;
+            arr2d_ptr_revert.changePram(arr);
+            arr2d_ptr_revert.changePram(rows, cols);
             int data_point = 0;
             for(int i = 0; i<rows; i++){
                 int rowNotZeroNums = rows_ptr[i+1] - rows_ptr[i];
                 auto arr2d_ptr_revert_row = arr2d_ptr_revert[i];
                 for(int j = 0; j<rowNotZeroNums; j++){
                     t data_element = data[data_point];
-                    int col = rows_ptr[data_point];
+                    int col = data_col_indices[data_point];
                     arr2d_ptr_revert_row[col] = data_element;
                     data_point++;
                 }
@@ -80,8 +80,8 @@ namespace CSR{
         revert();
         int data_len = rows_ptr[rows];
         arr2d_ptr_revert.transpose();
-        rows = arr2d_ptr_revert.rows;
-        cols = arr2d_ptr_revert.cols;
+        rows = arr2d_ptr_revert.showRowNums();
+        cols = arr2d_ptr_revert.showColNums();
         delete[] data;
         delete[] data_col_indices;
         delete[] rows_ptr;
@@ -102,22 +102,52 @@ namespace CSR{
             }
             rows_ptr[i+1] = rows_ptr[i] + count;
         }
-        rows = arr2d_ptr_revert.cols;
-        cols = arr2d_ptr_revert.rows;
     }
 
     template <class t>
-    void CSR_container<t>::deleteRevertedArr(){
-        delete[] arr2d_ptr_revert.arr2d_ptr;
-        arr2d_ptr_revert.arr2d_ptr = nullptr;
-        arr2d_ptr_revert.rows = 0;
-        arr2d_ptr_revert.cols = 0;
-        arr2d_ptr_revert.transposeFlag = false;
+    void CSR_container<t>::deleteRevertedArr() const{
+        arr2d_ptr_revert.deleteArr2d();
+        arr2d_ptr_revert.changePram(0, 0);
+        arr2d_ptr_revert.changePram(false);
         changeFlag = true;
     }
 
+    template <class t>
+    void CSR_container<t>::printArr() const{
+        std::cout << "rows=" << rows << "; ";
+        std::cout << "cols=" << cols << std::endl;
+        int data_len = rows_ptr[rows];
+        for(int i = 0; i<data_len; i++){
+            t temp = data[i];
+            std::cout << temp;
+            if(i < data_len-1)
+                std::cout << ", ";
+        }
+        std::cout << std::endl;
+        for(int i = 0; i<data_len; i++){
+            int temp = data_col_indices[i];
+            std::cout << temp;
+            if(i < data_len-1)
+                std::cout << ", ";
+        }
+        std::cout << std::endl;
+        for(int i = 0; i<rows+1; i++){
+            int temp = rows_ptr[i];
+            std::cout << temp;
+            if(i < rows)
+                std::cout << ", ";
+        }
+        std::cout << std::endl;
+    }
+
+    template <class t>
+    void CSR_container<t>::printRevertArr() const{
+        revert();
+        arr2d_ptr_revert.printArr();
+    }
+
     template <class t1, class t2>
-    void operator_right(const t2& a, t1& result, const char& modeFlag, typename std::enable_if<!is_CSR_container<t2>::value>::type* useless_){
+    void operator_right(const t2 a, t1& result, const char modeFlag, typename std::enable_if<!is_CSR_container<t2>::value>::type* useless_){
         int data_len = result.rows_ptr[result.rows];
         switch(modeFlag){
             case (char)0:
@@ -144,7 +174,7 @@ namespace CSR{
     }
 
     template <class t1, class t2>
-    void operator_right(const t2& a, t1& result, const char& modeFlag, typename std::enable_if<is_CSR_container<t2>::value>::type* useless_){
+    void operator_right(const t2& a, t1& result, const char modeFlag, typename std::enable_if<is_CSR_container<t2>::value>::type* useless_){
         int data_len = result.rows_ptr[result.rows];
         switch(modeFlag){
             case (char)0:
@@ -171,7 +201,7 @@ namespace CSR{
     }
 
     template <class t1, class t2>
-    void operator_left(const t2& a, t1& result, const char& modeFlag, typename std::enable_if<!is_CSR_container<t2>::value>::type* useless_){
+    void operator_left(const t2 a, t1& result, const char modeFlag, typename std::enable_if<!is_CSR_container<t2>::value>::type* useless_){
         int data_len = result.rows_ptr[result.rows];
         switch(modeFlag){
             case (char)1:
@@ -208,7 +238,7 @@ namespace CSR{
         }
     }
 
-    template <class t1, typename = typename std::enable_if<is_CSR_container<t1>::value>::type>
+    template <class t1, class t2>
     void operator_negativeSign(t1& result){
         int data_len = result.rows_ptr[result.rows];
         for(int i = 0; i<data_len; i++)
