@@ -1,3 +1,4 @@
+#include <typeinfo>
 #include "arr2D.h"
 #include "compressionByRow.h"
 #ifndef COMPRESS_H_CREATE_
@@ -5,20 +6,27 @@
 
 namespace CSR{
     template <class t>
-    CSR_container<t>::CSR_container(const t* data_, const int* data_col_indices_, const int* rows_ptr_, const int rows_, const int cols_){
-        int data_len = rows_ptr_[rows_];
-        data = new t[data_len]{(t)0};
-        data_col_indices = new int[data_len]{0};
-        rows_ptr = new int[rows_+1]{0};
+    CSR_container<t>::CSR_container(const t* data_, const int* data_col_indices_, const int* rows_ptr_, const int rows_, const int cols_, const bool addrCopy){
         rows = rows_; cols = cols_;
         changeFlag = true;
         arr2d_ptr_revert = arr2D::arr2d_container<t>();
-        for(int i = 0; i<data_len; i++){
-            data[i] = data_[i];
-            data_col_indices[i] = data_col_indices_[i];
+        if(addrCopy){
+            data = const_cast<t*>(data_);
+            data_col_indices = const_cast<int*>(data_col_indices_);
+            rows_ptr = const_cast<int*>(rows_ptr_);
         }
-        for(int i = 1; i<rows_+1; i++){
-            rows_ptr[i] = rows_ptr_[i];
+        else{
+            int data_len = rows_ptr_[rows_];
+            data = new t[data_len]{(t)0};
+            data_col_indices = new int[data_len]{0};
+            rows_ptr = new int[rows_+1]{0};
+            for(int i = 0; i<data_len; i++){
+                data[i] = data_[i];
+                data_col_indices[i] = data_col_indices_[i];
+            }
+            for(int i = 1; i<rows_+1; i++){
+                rows_ptr[i] = rows_ptr_[i];
+            }
         }
     }
 
@@ -80,40 +88,39 @@ namespace CSR{
 
     template <class t>
         template <class t1>
-            CSR_container<t>::CSR_container(const CSR_container<t1>& CSR_convert, typename std::enable_if<is_CSR_container<t1>::value && !std::is_same<t, t1>::value>::type* useless_){
+            CSR_container<t>::CSR_container(const CSR_container<t1>& CSR_convert, typename std::enable_if<!is_CSR_container<t1>::value && !std::is_same<t,t1>::value>::type* useless_){
                 arr2d_ptr_revert = arr2D::arr2d_container<t>();
-                rows = CSR_convert.rows; cols = CSR_convert.cols;
+                auto CSR_convert_proxy = CSR_convert.showBasicInfo();
+                rows = CSR_convert_proxy.rows; cols = CSR_convert_proxy.cols;
                 changeFlag = true;
-                int data_len = CSR_convert.rows_ptr[rows];
+                int data_len = CSR_convert_proxy.rows_ptr[rows];
                 data = new t[data_len]{(t)0};
                 data_col_indices = new int[data_len]{0};
                 rows_ptr = new int[rows+1]{0};
                 for(int i = 0; i<data_len; i++){
-                    data[i] = (t)CSR_convert.data[i];
-                    data_col_indices[i] = CSR_convert.data_col_indices[i];
+                    data[i] = (t)CSR_convert_proxy.data[i];
+                    data_col_indices[i] = CSR_convert_proxy.data_col_indices[i];
                 }
                 for(int i = 1; i<rows+1; i++){
-                    rows_ptr[i] = CSR_convert.rows_ptr[i];
+                    rows_ptr[i] = CSR_convert_proxy.rows_ptr[i];
                 }
             }
 
     template <class t>
         template <class t1>
-            CSR_container<t>::CSR_container(CSR_container<t1>&& CSR_convert, typename std::enable_if<is_CSR_container<t1>::value && !std::is_same<t, t1>::value>::type* useless_){
+            CSR_container<t>::CSR_container(CSR_container<t1>&& CSR_convert, typename std::enable_if<!is_CSR_container<t1>::value && !std::is_same<t,t1>::value>::type* useless_){
                 arr2d_ptr_revert = arr2D::arr2d_container<t>();
-                rows = CSR_convert.rows; cols = CSR_convert.cols;
+                auto CSR_convert_proxy = CSR_convert.showBasicInfo();
+                rows = CSR_convert_proxy.rows; cols = CSR_convert_proxy.cols;
                 changeFlag = true;
-                int data_len = CSR_convert.rows_ptr[rows];
+                int data_len = CSR_convert_proxy.rows_ptr[rows];
+                data = new t[data_len]{(t)0};
                 for(int i = 0; i<data_len; i++)
-                    data[i] = (t)CSR_convert.data[i];
-                delete[] CSR_convert.data;
-                CSR_convert.data = nullptr;
-                data_col_indices = CSR_convert.data_col_indices;
-                rows_ptr = CSR_convert.rows_ptr;
-                CSR_convert.data = nullptr;
-                CSR_convert.data_col_indices = nullptr;
-                CSR_convert.rows_ptr = nullptr;
-                CSR_convert.arr2d_ptr_revert.deleteArr2d();
+                    data[i] = (t)CSR_convert_proxy.data[i];
+                data_col_indices = CSR_convert_proxy.data_col_indices;
+                rows_ptr = CSR_convert_proxy.rows_ptr;
+                CSR_convert.setPtrNull();
+                delete[] CSR_convert_proxy.data;
             }
 
     template <class t>
@@ -129,3 +136,4 @@ namespace CSR{
 }
 
 #endif
+
