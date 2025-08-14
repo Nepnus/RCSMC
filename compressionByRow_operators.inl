@@ -1,6 +1,5 @@
 #include <type_traits>
 #include <utility>
-#include <typeinfo>
 #include "arr2D.h"
 #include "compressionByRow.h"
 #ifndef COMPRESS_H_OPERATORS_
@@ -56,15 +55,9 @@ namespace CSR{
     }
 
     template <class t>
-    auto CSR_container<t>::operator[](const int row){
-        revert();
-        auto rowData = arr2d_ptr_revert[row];
-        return rowData;
-    }
-
-    template <class t>
     const auto CSR_container<t>::operator[](const int row) const{
-        const auto rowData = const_cast<CSR_container<t>*>(this)->operator[](row);
+        revert();
+        const auto rowData = arr2d_ptr_revert[row];
         return rowData;
     }
 
@@ -72,20 +65,21 @@ namespace CSR{
         template <class t1>
             bool CSR_container<t>::operator==(const t1& a) const{
                 bool flag = false;
-                if(!is_CSR_container<t1>::value)
+                if constexpr (!is_CSR_container<t1>::value)
                     return flag;
                 else{
-                    if((a.rows != this->rows) || (a.cols != this->cols))
+                    const auto a_proxy = a.showBasicInfo();
+                    if((a_proxy.rows != this->rows) || (a_proxy.cols != this->cols))
                         return flag;
-                    for(int i = 1; i<a.rows+1; i++){
-                        if(a.rows_ptr[i] != (*this).rows_ptr[i])
+                    for(int i = 1; i<a_proxy.rows+1; i++){
+                        if(a_proxy.rows_ptr[i] != (*this).rows_ptr[i])
                             return flag;
                     }
-                    int data_len = a.rows_ptr[a.rows];
+                    int data_len = a_proxy.rows_ptr[a_proxy.rows];
                     for(int i = 0; i<data_len; i++){
-                        if(a.data_col_indices[i] != (*this).data_col_indices[i])
+                        if(a_proxy.data_col_indices[i] != (*this).data_col_indices[i])
                             return flag;
-                        if((*this).data[i] != (t)a.data[i])
+                        if((*this).data[i] != (t)a_proxy.data[i])
                             return flag;
                     }
                     flag = true;
@@ -93,6 +87,11 @@ namespace CSR{
                 }
             }
 
+}
+
+template <class t1, class t2, typename = typename std::enable_if<!CSR::is_CSR_container<t1>::value && CSR::is_CSR_container<t2>::value>::type>
+bool operator==(const t1 a, const t2& b){
+    return false;
 }
 
 template <class t1, class t2, typename = typename std::enable_if<CSR::is_CSR_container<t1>::value>::type>
